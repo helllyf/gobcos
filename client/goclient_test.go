@@ -37,5 +37,5 @@ func TestBlockNumber(t *testing.T) {
 		t.Fatalf("block number not found: %v", err)
 	}
 
-	t.Log("latest block number: %s", bn)
+	t.Logf("latest block number: %s", bn)
 }
