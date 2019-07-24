@@ -1,10 +1,11 @@
 package client
 
 import (
-    "fmt"
     "context"
-    "encoding/json"
     "errors"
+    "math/big"
+    "encoding/json"
+    "fmt"
 	
     "github.com/ethereum/go-ethereum/rpc"
 )
@@ -43,33 +44,48 @@ func (gc *Client) Close() {
 // Blockchain Access
 
 type clientVersion struct {
-    BuildTime string
-    BuildType string
-    ChainId string
-    FISCOBCOSVersion string
-    GitBranch string
-    GitCommitHash string
-    SupportedVersion string
+    BuildTime string          `json:"Build Time"`
+    BuildType string          `json:"Build Type"`
+    ChainId string            `json:"Chain Id"`
+    FISCOBCOSVersion string   `json:"FISCO-BCOS Version"`
+    GitBranch string          `json:"Git Branch"`
+    GitCommitHash string      `json:"Git Commit Hash"`
+    SupportedVersion string   `json:"Supported Version"`
+}
+
+func (c clientVersion) String() string {
+    return fmt.Sprintf(`{
+        "Build Time":"%s"
+        "Build Type":"%s"
+        "Chain Id":"%s"
+        "FISCO-BCOS Version":"%s"
+        "Git Branch":"%s"
+        "Git Commit Hash":"%s"
+        "Supported Version":"%s"
+        }`, c.BuildTime, c.BuildType, c.ChainId, c.FISCOBCOSVersion, c.GitBranch, c.GitCommitHash, c.SupportedVersion)
 }
 
 // GetClientVersion returns the version of FISCO BCOS running on the nodes.
-func (gc * Client) GetClientVersion(ctx context.Context)(* clientVersion, error) {
-    var cv *clientVersion
-    err := gc.rpcClient.CallContext(ctx, &cv, "getClientVersion")
-    if err == nil && cv == nil {
-        err = NotFound
+func (gc * Client) GetClientVersion(ctx context.Context)(*clientVersion, error) {
+    var raw json.RawMessage
+    
+    err := gc.c.CallContext(ctx, &raw, "getClientVersion")
+    if err != nil {
+		return nil, err
+	} else if len(raw) == 0 {
+		return nil, NotFound
     }
+    
+    var cv *clientVersion
+    if err := json.Unmarshal(raw, &cv); err != nil {
+		return nil, err
+	}
     return cv, err
 }
 
 // GetBlockNumber returns the latest block height on a given groupID.
-func (gc * Client) GetBlockNumber(ctx context.Context, groupID )([]byte, error) {
-    var raw json.RawMessage
-    err := gc.rpcClient.CallContext(ctx, &raw, "getBlockNumber", 1)
-    if err != nil {
-        return nil,err
-    }
-
-    b,err := json.Marshal(raw)
-    return b, err
+func (gc * Client) GetBlockNumber(ctx context.Context, groupID *big.Int)(string, error) {
+    var bn string
+    err := gc.c.CallContext(ctx, &bn, "getBlockNumber", groupID)
+    return bn, err
 }

@@ -1,25 +1,41 @@
 package client
 
-// Connect creates a client that uses the given host.
-func Connect(host string)( * Client, error) {
-    rpcClient, err := rpc.Dial(host)
+import (
+	"context"
+	"testing"
+	"math/big"
+)
+
+func GetClient(t *testing.T) (*Client) {
+	// RPC API
+	c, err := Dial("http://localhost:8545")
 	if err != nil {
-        fmt.Println("connect failed!")
-        return nil, err
-    }
-    ethClient := ethclient.NewClient(rpcClient)
-	return &Client{rpcClient, ethClient},nil
+		t.Fatalf("can not dial to the RPC API: %v", err)
+	}
+	return c
 }
 
-// main method
-func main() {
-    client,err := Connect("http://localhost:8545")
-    if err != nil {
-        fmt.Println("Connect failed!")
-        return
+func TestClientVersion(t *testing.T) {
+	c := GetClient(t)
+	defer c.Close()
+	
+	cv, err := c.GetClientVersion(context.Background())
+	if err != nil {
+		t.Fatalf("client version not found: %v", err)
 	}
-    result,err := client.GetClientVersion(context.TODO())
-    num,err := client.GetBlockNumber(context.TODO())
-    fmt.Println(string(result[:]))
-    fmt.Println(string(num[:]))
-} 
+
+	t.Log(cv)
+}
+
+func TestBlockNumber(t *testing.T) {
+    c := GetClient(t)
+	defer c.Close()
+	
+	groupID := big.NewInt(1)
+	bn, err := c.GetBlockNumber(context.Background(), groupID)
+	if err != nil {
+		t.Fatalf("block number not found: %v", err)
+	}
+
+	t.Log("latest block number: %s", bn)
+}

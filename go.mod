@@ -7,7 +7,7 @@ require (
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/elastic/gosigar v0.10.4 // indirect
-	github.com/ethereum/go-ethereum v1.9.0 // indirect
+	github.com/ethereum/go-ethereum v1.9.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570 // indirect
