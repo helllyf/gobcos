@@ -1,7 +1,9 @@
 # gobcos
 Golang Client For FISCO BCOS
 
-FISCO BCOS Go语言版本的SDK，整合了 FISCO BCOS 的 RPC API 服务，目前采用了以太坊的 RPC 库作为接口基础。
+FISCO BCOS Go语言版本的SDK，主要的功能有：
+
+- RPC API 服务，提供两种接口调用方式。
 
 # 环境准备
 

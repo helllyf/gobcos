@@ -2,43 +2,25 @@
 package client
 
 import (
-    "context"
     "errors"
-    "math/big"
-    "encoding/json"
-	
-    "github.com/ethereum/go-ethereum/rpc"
+    
+    "gobcos/rpc"
 )
 
 // client defines typed wrapper for the FISCO BCOS RPC API
 // refer the Ethereum
 type Client struct {
-    c * rpc.Client 
+    c rpc.RPCClient
 }
-
-// NotFound is returned by API methods if the requested item does not exist.
-var NotFound = errors.New("not found")
 
 // Dial connects a client to the given URL.
 func Dial(rawurl string) (*Client, error) {
-	return DialContext(context.Background(), rawurl)
-}
-
-func DialContext(ctx context.Context, rawurl string) (*Client, error) {
-	c, err := rpc.DialContext(ctx, rawurl)
-	if err != nil {
-		return nil, err
+    client, err := rpc.Dial("http://localhost:8545")
+	if err != nil{
+        errs := errors.New("can't dial to the json-rpc API: " + err.Error())
+        return nil, errs
 	}
-	return NewClient(c), nil
-}
-
-// NewClient creates a client that uses the given RPC client.
-func NewClient(c *rpc.Client) *Client {
-	return &Client{c}
-}
-
-func (gc *Client) Close() {
-	gc.c.Close()
+	return &Client{c:client}, err
 }
 
 // Blockchain Access
@@ -68,67 +50,62 @@ func (gc *Client) Close() {
 // }
 
 // GetClientVersion returns the version of FISCO BCOS running on the nodes.
-func (gc *Client) GetClientVersion(ctx context.Context) ([]byte, error) {
-    var raw json.RawMessage
-    
-    err := gc.c.CallContext(ctx, &raw, "getClientVersion")
+func (gc *Client) GetClientVersion() ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getClientVersion")
     if err != nil {
 		return nil, err
-	} else if len(raw) == 0 {
-		return nil, NotFound
-    }
-    
-    // var cv *clientVersion
-    // if err := json.Unmarshal(raw, &cv); err != nil {
-	// 	return nil, err
-	// }
-    // return cv, err
-
-    return raw,err
+	}
+    return resp,err
 }
 
+// GetClientVersion returns the data struct wih the version of FISCO BCOS running on the nodes.
+// func (gc *Client) GetClientVersionDS() (*clientVersion, error) {
+//     var cv *clientVersion
+//     resp, err := gc.c.Call(cv, "getClientVersion")
+//     if err != nil {
+// 		return nil, err
+// 	}
+//     return resp,err
+// }
+
 // GetBlockNumber returns the latest block height(hex format) on a given groupID.
-func (gc *Client) GetBlockNumber(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getBlockNumber", groupID)
+func (gc *Client) GetBlockNumber(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getBlockNumber", groupID)
     if err != nil {
         return nil, err
     }
-    return raw, err
+    return resp, err
 }
 
 // GetPBFTView returns the latest PBFT view(hex format) of the specific group and it will returns a wrong sentence
 // if the consensus algorithm is not the PBFT.
-func (gc *Client) GetPBFTView(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getPbftView", groupID)
+func (gc *Client) GetPBFTView(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getPbftView", groupID)
     if err != nil {
         return nil, err
     }
-    return raw, err
+    return resp, err
 
     // TODO
     // Raft consensus
 }
 
 // GetSealerList returns the list of consensus nodes' ID according to the groupID
-func (gc *Client) GetSealerList(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getSealerList", groupID)
+func (gc *Client) GetSealerList(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getSealerList", groupID)
     if err != nil {
         return nil, err
     }
-    return raw, err
+    return resp, err
 }
 
 // GetObserverList returns the list of observer nodes' ID according to the groupID
-func (gc *Client) GetObserverList(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getObserverList", groupID)
+func (gc *Client) GetObserverList(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getObserverList", groupID)
     if err != nil {
         return nil, err
     }
-    return raw, err
+    return resp, err
 }
 
 // TODO
@@ -152,183 +129,165 @@ func (gc *Client) GetObserverList(ctx context.Context, groupID *big.Int) ([]byte
 // }
 
 // GetConsensusStatus returns the status information about the consensus algorithm on a specific groupID
-func (gc *Client) GetConsensusStatus(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getConsensusStatus", groupID)
+func (gc *Client) GetConsensusStatus(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getConsensusStatus", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetSyncStatus returns the synchronization status of the group
-func (gc *Client) GetSyncStatus(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getSyncStatus", groupID)
+func (gc *Client) GetSyncStatus(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getSyncStatus", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetPeers returns the information of the connected peers
-func (gc *Client) GetPeers(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getPeers", groupID)
+func (gc *Client) GetPeers(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getPeers", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetGroupPeers returns the nodes and the overser nodes list on a specific group
-func (gc *Client) GetGroupPeers(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getGroupPeers", groupID)
+func (gc *Client) GetGroupPeers(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getGroupPeers", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetNodeIDList returns the ID information of the connected peers and itself
-func (gc *Client) GetNodeIDList(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getNodeIDList", groupID)
+func (gc *Client) GetNodeIDList(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getNodeIDList", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // getGroupList returns the groupID that the node belongs to 
-func (gc *Client) GetGroupList(ctx context.Context) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getGroupList")
+func (gc *Client) GetGroupList() ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getGroupList")
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetBlockByHash returns the block information according to the given block hash
-func (gc *Client) GetBlockByHash(ctx context.Context, groupID *big.Int, bhash string, includetx bool) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getBlockByHash", groupID, bhash, includetx)
+func (gc *Client) GetBlockByHash(groupID uint, bhash string, includetx bool) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getBlockByHash", groupID, bhash, includetx)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetBlockByNumber returns the block information according to the given block number(hex format)
-func (gc *Client) GetBlockByNumber(ctx context.Context, groupID *big.Int, bnum string, includetx bool) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getBlockByNumber", groupID, bnum, includetx)
+func (gc *Client) GetBlockByNumber(groupID uint, bnum string, includetx bool) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getBlockByNumber", groupID, bnum, includetx)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetBlockHashByNumber returns the block hash according to the given block number
-func (gc *Client) GetBlockHashByNumber(ctx context.Context, groupID *big.Int, bnum string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getBlockHashByNumber", groupID, bnum)
+func (gc *Client) GetBlockHashByNumber(groupID uint, bnum string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getBlockHashByNumber", groupID, bnum)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetTransactionByHash returns the transaction information according to the given transaction hash
-func (gc *Client) GetTransactionByHash(ctx context.Context, groupID *big.Int, txhash string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getTransactionByHash", groupID, txhash)
+func (gc *Client) GetTransactionByHash(groupID uint, txhash string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getTransactionByHash", groupID, txhash)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // getTransactionByBlockHashAndIndex returns the transaction information according to 
 // the given block hash and transaction index
-func (gc *Client) GetTransactionByBlockHashAndIndex(ctx context.Context, groupID *big.Int, bhash string, txindex string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getTransactionByBlockHashAndIndex", groupID, bhash, txindex)
+func (gc *Client) GetTransactionByBlockHashAndIndex(groupID uint, bhash string, txindex string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getTransactionByBlockHashAndIndex", groupID, bhash, txindex)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetTransactionByBlockNumberAndIndex returns the transaction information according to 
 // the given block number and transaction index
-func (gc *Client) GetTransactionByBlockNumberAndIndex(ctx context.Context, groupID *big.Int, bnum string, txindex string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getTransactionByBlockNumberAndIndex", groupID, bnum, txindex)
+func (gc *Client) GetTransactionByBlockNumberAndIndex(groupID uint, bnum string, txindex string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getTransactionByBlockNumberAndIndex", groupID, bnum, txindex)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetTransactionReceipt returns the transaction receipt according to the given transaction hash
-func (gc *Client) GetTransactionReceipt(ctx context.Context, groupID *big.Int, txhash string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getTransactionReceipt", groupID, txhash)
+func (gc *Client) GetTransactionReceipt(groupID uint, txhash string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getTransactionReceipt", groupID, txhash)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetPendingTransactions returns information of the pending transactions
-func (gc *Client) GetPendingTransactions(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getPendingTransactions", groupID)
+func (gc *Client) GetPendingTransactions(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getPendingTransactions", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetPendingTxSize returns amount of the pending transactions
-func (gc *Client) GetPendingTxSize(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getPendingTxSize", groupID)
+func (gc *Client) GetPendingTxSize(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getPendingTxSize", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetCode returns the contract code according to the contract address
-func (gc *Client) GetCode(ctx context.Context, groupID *big.Int, addr string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getCode", groupID, addr)
+func (gc *Client) GetCode(groupID uint, addr string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getCode", groupID, addr)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetTotalTransactionCount returns the totoal amount of transactions and the block height at present
-func (gc *Client) GetTotalTransactionCount(ctx context.Context, groupID *big.Int) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getTotalTransactionCount", groupID)
+func (gc *Client) GetTotalTransactionCount(groupID uint) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getTotalTransactionCount", groupID)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
 
 // GetSystemConfigByKey returns value according to the key(only tx_count_limit, tx_gas_limit could work)
-func (gc *Client) GetSystemConfigByKey(ctx context.Context, groupID *big.Int, findkey string) ([]byte, error) {
-    var raw json.RawMessage
-    err := gc.c.CallContext(ctx, &raw, "getSystemConfigByKey", groupID, findkey)
+func (gc *Client) GetSystemConfigByKey(groupID uint, findkey string) ([]byte, error) {
+    resp, err := gc.c.CallJsonResponse("getSystemConfigByKey", groupID, findkey)
     if err != nil {
         return nil, err
     }
-    return raw,err
+    return resp, err
 }
