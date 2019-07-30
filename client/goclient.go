@@ -3,8 +3,9 @@ package client
 
 import (
     "errors"
-    
+
     "gobcos/rpc"
+    "gobcos/utils"
 )
 
 // client defines typed wrapper for the FISCO BCOS RPC API
@@ -291,3 +292,17 @@ func (gc *Client) GetSystemConfigByKey(groupID uint, findkey string) ([]byte, er
     }
     return resp, err
 }
+
+// Contract Calling 
+
+// Call executes a message call transaction, which is directly executed in the VM
+// of the node, but never mined into the blockchain.
+// refer to the FISCO BCOS Python SDK
+// func (gc *Client) Call(groupID uint, from string, to string, contractABI string, funcName string, args ...interface{}) ([]byte, error) {
+//     objData := utils.GetCallArgs(from, to, funcName, contractABI, args...)
+//     resp, err := gc.c.CallJsonResponse("call", groupID, objData)
+//     if err != nil {
+//         return nil, err
+//     }
+//     return resp, err
+// }
