@@ -290,7 +290,7 @@ touch contract_run.go
 go mod init contract
 ```
 
-此时目录下会生成`go.mod`包管理文件。而在`contract_deploy.go`部署合约之前，需要先从`gobcos`中导入`accounts/abi/bind`包，然后调用传入私钥的`NewKeyedTransactor`：
+此时目录下会生成`go.mod`包管理文件。而在`contract_deploy.go`部署合约之前，需要先从`gobcos`中导入`accounts/abi/bind`包，然后调用传入私钥的`NewKeyedTransactor`，可以通过bind.WaitMined来等待事务真正在链上处理完毕：
 
 ```go 
 package main
@@ -320,6 +320,11 @@ func main(){
     if err != nil {
         log.Fatal(err)
     }
+    receipt, err := bind.WaitMined(context.Background(),client,tx)
+    if err != nil {
+        log.Fatalf("tx mining error:%v\n", err)
+    }
+    fmt.Println(receipt.ContractAddress.Hex())
     fmt.Println("contract address: ", address.Hex())  // the address should be saved
     fmt.Println("transaction hash: ", tx.Hash().Hex())
     _ = instance
@@ -394,6 +399,57 @@ func main() {
     }
 
     fmt.Println("version :", version) // "Store deployment 1.0"
+}
+```
+
+### 写入智能合约
+
+写入智能合约需要我们用私钥来对交易事务进行签名，我们创建的智能合约有一个名为`SetItem`的外部方法，它接受solidity`bytes32`类型的两个参数（key，value）。 这意味着在Go文件中需要传递一个长度为32个字节的字节数组。 调用`SetItem`方法需要我们传递我们之前创建的`auth`对象（keyed transactor）。 在幕后，此方法将使用它的参数对此函数调用进行编码，将其设置为事务的data属性，并使用私钥对其进行签名。 结果将是一个已签名的事务对象。新建`contract_write.go`来测试写入智能合约：
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/KasperLiu/gobcos/common"
+    "github.com/KasperLiu/gobcos/client"
+    "github.com/KasperLiu/gobcos/accounts/abi/bind"
+    "github.com/KasperLiu/gobcos/crypto"
+    store "contract/testfile" // for demo
+)
+
+func main() {
+    groupID := uint(8)
+    client, err := client.Dial("http://localhost:8545", groupID)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // load the contract
+    address := common.HexToAddress("contract addree in hex") // 0x0626918C51A1F36c7ad4354BB1197460A533a2B9
+    instance, err := store.NewStore(address, client)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    key := [32]byte{}
+    value := [32]byte{}
+    copy(key[:], []byte("foo"))
+    copy(value[:], []byte("bar"))
+
+    privateKey, err := crypto.HexToECDSA("input your privateKey in hex") // 145e247e170ba3afd6ae97e88f00dbc976c2345d511b0f6713355d19d8b80b58
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    auth := bind.NewKeyedTransactor(privateKey)
+    tx, err := instance.SetItem(auth, key, value)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("tx sent: %s", tx.Hash().Hex())
 }
 ```
 
