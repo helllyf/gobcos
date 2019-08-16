@@ -290,7 +290,7 @@ touch contract_run.go
 go mod init contract
 ```
 
-此时目录下会生成`go.mod`包管理文件。而在`contract_deploy.go`部署合约之前，需要先从`gobcos`中导入`accounts/abi/bind`包，然后调用传入私钥的`NewKeyedTransactor`，可以通过bind.WaitMined来等待事务真正在链上处理完毕：
+此时目录下会生成`go.mod`包管理文件。而在`contract_deploy.go`部署合约之前，需要先从`gobcos`中导入`accounts/abi/bind`包，然后调用传入私钥的`NewKeyedTransactor`，可以通过`bind.WaitMined`来等待事务真正在链上处理完毕：
 
 ```go 
 package main
