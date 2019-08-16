@@ -1,14 +1,23 @@
 package client
 
 import (
-	"testing"
 	"context"
+	"crypto/ecdsa"
+	"fmt"
+	"github.com/KasperLiu/gobcos/accounts/abi/bind"
+	"github.com/KasperLiu/gobcos/common"
+	"github.com/KasperLiu/gobcos/common/hexutil"
+	"github.com/KasperLiu/gobcos/contract/Store"
+	"github.com/KasperLiu/gobcos/contract/router"
+	"github.com/KasperLiu/gobcos/crypto"
+	"log"
+	"testing"
 )
 
 func GetClient(t *testing.T) (*Client) {
 	// RPC API
 	groupID := uint(1)
-	c, err := Dial("http://localhost:8545", groupID)  // change to your RPC and groupID
+	c, err := Dial("http://192.168.1.131:8545", groupID)  // change to your RPC and groupID
 	if err != nil {
 		t.Fatalf("can not dial to the RPC API: %v", err)
 	}
@@ -48,6 +57,174 @@ func TestPBFTView(t *testing.T) {
 	t.Logf("PBFT view: \n%s", pv)
 }
 
+func TestCreateAccount(t *testing.T) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+	privateKeyBytes := crypto.FromECDSA(privateKey)
+	fmt.Println(hexutil.Encode(privateKeyBytes)[2:])
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+	fmt.Println(hexutil.Encode(publicKeyBytes)[4:])
+	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+	fmt.Println(address)
+}
+
+func TestRouter(t *testing.T) {
+	client := GetClient(t)
+	privateKey, _ := crypto.HexToECDSA("f1b3f8e0d52caec13491368449ab8d90f3d222a3e485aa7f02591bbceb5efba5")
+	privateKeyBytes := crypto.FromECDSA(privateKey)
+	fmt.Println(hexutil.Encode(privateKeyBytes)[2:])
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	publicKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+	fmt.Println(hexutil.Encode(publicKeyBytes)[4:])
+	_address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+	fmt.Println(_address)
+	auth := bind.NewKeyedTransactor(privateKey)
+	address := common.HexToAddress("0xC1Be3A354D20696B5c91626322835C81F2000c82")
+	instance, _ := router.NewRouter(address, client)
+	//auth.From = crypto.PubkeyToAddress(*publicKeyECDSA)
+	tx,err := instance.InsertAuto(auth)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("transaction hash: ", tx.Hash().Hex())
+	sender := common.HexToAddress("0xE280029a7867BA5C9154434886c241775ea87e53")
+	opts := &bind.CallOpts{From: sender}
+	res,err := instance.Show(opts,sender)
+	if err !=nil {
+		fmt.Println(err)
+	}
+	fmt.Println(res.Hex())
+}
+
+func TestDeploy(t *testing.T) {
+	client := GetClient(t)
+	//privateKey, err := crypto.HexToECDSA("input your privateKey in hex without \"0x\"") // 145e247e170ba3afd6ae97e88f00dbc976c2345d511b0f6713355d19d8b80b58
+
+	privateKey, err := crypto.HexToECDSA("f1b3f8e0d52caec13491368449ab8d90f3d222a3e485aa7f02591bbceb5efba5")
+	auth := bind.NewKeyedTransactor(privateKey) // input your privateKey
+	input := "Store deployment 1.0"
+	address, tx, instance, err := store.DeployStore(auth, client, input)
+	receipt, err := bind.WaitMined(context.Background(),client,tx)
+	if err != nil {
+		log.Fatalf("tx mining error:%v\n", err)
+	}
+	fmt.Println(receipt.ContractAddress.Hex())
+	address1,tx1,instance1,err1 := router.DeployRouter(auth,client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("contract address: ", address.Hex())  // the address should be saved
+	fmt.Println("transaction hash: ", tx.Hash().Hex())
+	_ = instance
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+	fmt.Println("contract address: ", address1.Hex())  // the address should be saved
+	fmt.Println("transaction hash: ", tx1.Hash().Hex())
+	_ = instance1
+}
+
+func TestLoad(t *testing.T) {
+	client := GetClient(t)
+	address := common.HexToAddress("0xEC129c56486AD3504A8922F8dc45A07941f13e05")
+	instance, err := store.NewStore(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("contract is loaded")
+	_ = instance
+}
+
+func TestRead(t *testing.T) {
+	client := GetClient(t)
+	address := common.HexToAddress("0xEC129c56486AD3504A8922F8dc45A07941f13e05")
+	instance, err := store.NewStore(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	opts := &bind.CallOpts{From: common.HexToAddress("0xe280029a7867ba5c9154434886c241775ea87e53")} //0xFbb18d54e9Ee57529cda8c7c52242EFE879f064F
+	version, err := instance.Version(opts)
+	key := [32]byte{}
+	copy(key[:], []byte("foo"))
+
+	value,err :=  instance.Items(opts,key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resvalue := value[:]
+	fmt.Println(common.Bytes2Hex(resvalue))
+
+	fmt.Println("version :", version) // "Store deployment 1.0"
+}
+
+func TestDemo(t *testing.T)  {
+	// load the contract
+	client := GetClient(t)
+	address := common.HexToAddress("0xEC129c56486AD3504A8922F8dc45A07941f13e05")
+	instance, err := store.NewStore(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key := [32]byte{}
+	value := [32]byte{}
+	copy(key[:], []byte("foo"))
+	copy(value[:], []byte("bar"))
+
+	privateKey, err := crypto.HexToECDSA("f1b3f8e0d52caec13491368449ab8d90f3d222a3e485aa7f02591bbceb5efba5") // 145e247e170ba3afd6ae97e88f00dbc976c2345d511b0f6713355d19d8b80b58
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	auth := bind.NewKeyedTransactor(privateKey)
+	tx, err := instance.SetItem(auth, key, value)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("tx sent: %s", tx.Hash().Hex())
+}
+
+func TestWrite(t *testing.T) {
+	client := GetClient(t)
+	address := common.HexToAddress("0xEC129c56486AD3504A8922F8dc45A07941f13e05")
+	instance, err := store.NewStore(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key := [32]byte{}
+	value := [32]byte{}
+	copy(key[:], []byte("foo"))
+	copy(value[:], []byte("bar111"))
+
+	privateKey, err := crypto.HexToECDSA("f1b3f8e0d52caec13491368449ab8d90f3d222a3e485aa7f02591bbceb5efba5") // 145e247e170ba3afd6ae97e88f00dbc976c2345d511b0f6713355d19d8b80b58
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	auth := bind.NewKeyedTransactor(privateKey)
+	tx, err := instance.SetItem(auth, key, value)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("tx sent: %s", tx.Hash().Hex())
+}
 // func TestBlockLimit(t *testing.T) {
 //     c := GetClient(t)
 // 	// cannot use big.NewInt to construct json request
